@@ -12,6 +12,7 @@ namespace POS.Models
         [StringLength(20)]
         public string OrderNumber {  get; set; }
 
+        public DateTime OrderDate { get; set; } = DateTime.Now;
         [Required]
         public OrderType OrderType { get; set; } // Delivery, Takeaway
 
