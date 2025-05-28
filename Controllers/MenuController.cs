@@ -38,7 +38,7 @@ namespace POS.Controllers
         }
 
         // Menu Items
-        public async Task<List<MenuItem>> GetMenuItemsByCategoryAsync(int categoryId)
+        public async Task<List<MenuItem>> GetMenuItemsByCategoryIdAsync(int categoryId)
         {
             return await _context.MenuItems
                 .Where(m => m.CategoryId == categoryId && m.IsActive)

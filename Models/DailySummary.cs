@@ -4,9 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace POS.Models
 {
-    public class DailySummary
+    public class DailySummary : BaseEntity
     {
-        public int Id { get; set; }
 
         public DateTime Date { get; set; }
 
@@ -25,7 +24,5 @@ namespace POS.Models
 
         [Column(TypeName = "decimal(12,2)")]
         public decimal TotalTax { get; set; }
-
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

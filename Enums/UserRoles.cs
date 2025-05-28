@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace POS.Enums
 {
-    public enum Roles
+    public enum Role
     {
         Admin,
         Cashir

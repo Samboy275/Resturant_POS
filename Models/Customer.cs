@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+
 namespace POS.Models
 {
-    public class Customer
+    public class Customer : BaseEntity // Inherit from BaseEntity
     {
-        [Key]
-        public int Id { get; set; }
+        // Id, CreatedAt, IsActive are now inherited
+        // [Key] // Removed
+        // public int Id { get; set; }
 
         [Required]
         [StringLength(200)]
@@ -21,11 +18,8 @@ namespace POS.Models
 
         [Required]
         [StringLength(15)]
-        public string Phonetic { get; set; }
+        public string Phone { get; set; }
 
-
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-
-
+        // public DateTime CreatedAt { get; set; } = DateTime.Now; // Removed
     }
 }

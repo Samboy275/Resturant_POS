@@ -3,16 +3,19 @@ using POS.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 using System.Linq;
+using System.ComponentModel;
+using POS.Database;
+using System.Collections;
 
 namespace POS.Controllers
 {
     public class AuthController
     {
-        private readonly PosDbContext _context;
+        private readonly POSDbContext _context;
 
-        public AuthController()
+        public AuthController(POSDbContext context)
         {
-            _context = new PosDbContext();
+            _context = context;
         }
 
         public async Task<User> LoginAsync(string username, string password)
@@ -35,6 +38,10 @@ namespace POS.Controllers
             return await _context.SaveChangesAsync() > 0;
         }
 
+        public async Task<List<User>> GetActiveUsersAsync()
+        {
+            return await _context.Users.ToListAsync();
+        }
         public void Dispose()
         {
             _context?.Dispose();

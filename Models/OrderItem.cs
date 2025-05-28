@@ -3,9 +3,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace POS.Models
 {
-    public class OrderItem
+    public class OrderItem : BaseEntity // Inherit from BaseEntity
     {
-        public int Id { get; set; }
+        // Id, CreatedAt, IsActive are now inherited
+        // public int Id { get; set; } // Removed
 
         public int OrderId { get; set; }
         public virtual Order Order { get; set; }
@@ -24,6 +25,5 @@ namespace POS.Models
 
         [Column(TypeName = "decimal(10,2)")]
         public decimal LineTotal => Price * Quantity;
-
     }
 }

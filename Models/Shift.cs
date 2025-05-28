@@ -4,9 +4,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace POS.Models
 {
-    public class Shift
+    public class Shift : BaseEntity // Inherit from BaseEntity
     {
-        public int Id { get; set; }
+        // Id, CreatedAt, IsActive are now inherited
+        // public int Id { get; set; } // Removed
 
         public DateTime StartTime { get; set; }
         public DateTime? EndTime { get; set; }
@@ -25,6 +26,6 @@ namespace POS.Models
 
         public int OrderCount { get; set; }
 
-        public bool IsActive { get; set; } = true;
+        // public bool IsActive { get; set; } = true; // Removed
     }
 }

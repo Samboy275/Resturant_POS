@@ -2,10 +2,11 @@
 using POS.Enums;
 namespace POS.Models
 {
-    public class User
+    public class User : BaseEntity // Inherit from BaseEntity
     {
-        [Key]
-        public int Id { get; set; }
+        // Id, CreatedAt, IsActive are now inherited
+        // [Key] // Removed
+        // public int Id { get; set; }
 
         [Required]
         [StringLength(100)]
@@ -15,15 +16,12 @@ namespace POS.Models
         public string PasswordHash { get; set; }
 
         [Required]
-        public Roles Role {  get; set; } // Admin, Cashir
-
+        public Role Role { get; set; } // Admin, Cashir
 
         [StringLength(100)]
         public string FullName { get; set; }
 
-
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public bool IsActive { get; set; } = true;
-
+        // public DateTime CreatedAt { get; set; } = DateTime.Now; // Removed
+        // public bool IsActive { get; set; } = true; // Removed
     }
 }

@@ -1,107 +1,128 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection.Emit;
-using POS.Models;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using POS.Models; // Assuming your models are in this namespace
+using System;
+using System.Linq; // Needed for .Sum() and potentially other LINQ methods
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace POS.Database
 {
-    public class PosDbContext : DbContext
+    public class POSDbContext : DbContext
     {
-        public DbSet<User> Users { get; set; }
+        // --- DbSets for your Models ---
         public DbSet<Category> Categories { get; set; }
+        public DbSet<Customer> Customers { get; set; }
+        public DbSet<DailySummary> DailySummaries { get; set; } // DailySummary does NOT inherit BaseEntity
         public DbSet<MenuItem> MenuItems { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
-        public DbSet<DailySummary> DailySummaries { get; set; }
         public DbSet<Shift> Shifts { get; set; }
+        public DbSet<User> Users { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=RestaurantPOS;Trusted_Connection=true;");
-        }
+        // --- Constructor for Dependency Injection ---
+        public POSDbContext(DbContextOptions<POSDbContext> options) : base(options) { }
 
+        // --- Model Configuration (Fluent API & Global Query Filters) ---
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Always call the base method first to ensure default EF Core conventions are applied
             base.OnModelCreating(modelBuilder);
 
-            // Configure relationships
-            modelBuilder.Entity<MenuItem>()
-                .HasOne(m => m.Category)
-                .WithMany(c => c.MenuItems)
-                .HasForeignKey(m => m.CategoryId);
+            // Apply Global Query Filter for Soft Deletion (IsActive)
+            // This ensures that all queries for entities inheriting BaseEntity will automatically
+            // filter out records where IsActive is false.
+            // This is inside the foreach loop within OnModelCreating
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                {
+                    // Corrected line: Use a helper method or a more explicit cast if needed.
+                    // A common and robust way is to use a non-generic HasQueryFilter override
+                    // that takes an Expression<Func<TEntity, bool>>
+                    var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+                    var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsActive));
+                    var filter = System.Linq.Expressions.Expression.Lambda(property, parameter);
+
+                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+                }
+            }
+
+            // --- Optional: Configure Enum-to-String Conversion (if you prefer string storage) ---
+            // By default, EF Core stores enums as integers. If you want them stored as strings (e.g., "Delivery", "Admin"),
+            // you need to specify a value converter. If you don't add these, enums will be stored as integers.
+            // Remove the [StringLength] attribute from the model properties if using these converters,
+            // as EF Core will determine the max length based on the enum values.
 
             modelBuilder.Entity<Order>()
-                .HasOne(o => o.User)
-                .WithMany()
-                .HasForeignKey(o => o.UserId);
+                .Property(o => o.OrderType)
+                .HasConversion<string>(); // Converts OrderType enum to its string name in DB
 
-            modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.Order)
-                .WithMany(o => o.OrderItems)
-                .HasForeignKey(oi => oi.OrderId);
+            modelBuilder.Entity<Order>()
+                .Property(o => o.OrderStatus)
+                .HasConversion<string>(); // Converts OrderStatus enum to its string name in DB
 
-            modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.MenuItem)
-                .WithMany()
-                .HasForeignKey(oi => oi.MenuItemId);
-
-            modelBuilder.Entity<Shift>()
-                .HasOne(s => s.User)
-                .WithMany()
-                .HasForeignKey(s => s.UserId);
-
-            // Seed initial data
-            SeedData(modelBuilder);
+            modelBuilder.Entity<User>()
+                .Property(u => u.Role)
+                .HasConversion<string>(); // Converts UserRole enum to its string name in DB
         }
 
-        private void SeedData(ModelBuilder modelBuilder)
+        // --- Override SaveChanges for Automatic Auditing (CreatedAt, ModifiedAt) ---
+        public override int SaveChanges()
         {
-            // Seed admin user (password: "admin123")
-            modelBuilder.Entity<User>().HasData(
-                new User
+            // Use UtcNow for consistency across time zones and servers
+            var now = DateTime.UtcNow;
+
+            // Iterate through all tracked entity entries that have changed
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                // Check if the current entity inherits from our BaseEntity
+                if (entry.Entity is BaseEntity baseEntity)
                 {
-                    Id = 1,
-                    Username = "admin",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    Role = "Admin",
-                    FullName = "System Administrator"
+                    // If the entity is being added (new record)
+                    if (entry.State == EntityState.Added)
+                    {
+                        baseEntity.CreatedAt = now;
+                        baseEntity.ModifiedAt = now; // Also set ModifiedAt on creation
+                        // baseEntity.IsActive is already true by default in BaseEntity's constructor
+                    }
+                    // If the entity is being modified (existing record updated)
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        baseEntity.ModifiedAt = now; // Update ModifiedAt timestamp
+
+                        // Prevent the CreatedAt field from being updated after initial creation.
+                        // This ensures it truly represents the record's creation time.
+                        entry.Property(nameof(BaseEntity.CreatedAt)).IsModified = false;
+                    }
                 }
-            );
+            }
+            // Call the base SaveChanges method to persist changes to the database
+            return base.SaveChanges();
+        }
 
-            // Seed categories
-            modelBuilder.Entity<Category>().HasData(
-                new Category { Id = 1, Name = "Appetizers", Color = "#FF5722" },
-                new Category { Id = 2, Name = "Main Dishes", Color = "#4CAF50" },
-                new Category { Id = 3, Name = "Desserts", Color = "#E91E63" },
-                new Category { Id = 4, Name = "Beverages", Color = "#2196F3" },
-                new Category { Id = 5, Name = "Salads", Color = "#8BC34A" }
-            );
+        // --- Override SaveChangesAsync for Asynchronous Auditing ---
+        // It's important to override both synchronous and asynchronous versions for consistency
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.UtcNow;
 
-            // Seed menu items
-            modelBuilder.Entity<MenuItem>().HasData(
-                // Appetizers
-                new MenuItem { Id = 1, Name = "Buffalo Wings", Price = 12.99m, CategoryId = 1, Color = "#FF6B35" },
-                new MenuItem { Id = 2, Name = "Mozzarella Sticks", Price = 9.99m, CategoryId = 1, Color = "#FFB830" },
-                new MenuItem { Id = 3, Name = "Onion Rings", Price = 7.99m, CategoryId = 1, Color = "#FF8C42" },
-
-                // Main Dishes
-                new MenuItem { Id = 4, Name = "Grilled Chicken", Price = 18.99m, CategoryId = 2, Color = "#6BCF7F" },
-                new MenuItem { Id = 5, Name = "Beef Burger", Price = 15.99m, CategoryId = 2, Color = "#4D7C0F" },
-                new MenuItem { Id = 6, Name = "Fish & Chips", Price = 16.99m, CategoryId = 2, Color = "#059669" },
-
-                // Desserts
-                new MenuItem { Id = 7, Name = "Chocolate Cake", Price = 8.99m, CategoryId = 3, Color = "#EC4899" },
-                new MenuItem { Id = 8, Name = "Ice Cream", Price = 5.99m, CategoryId = 3, Color = "#F472B6" },
-
-                // Beverages
-                new MenuItem { Id = 9, Name = "Coca Cola", Price = 2.99m, CategoryId = 4, Color = "#3B82F6" },
-                new MenuItem { Id = 10, Name = "Orange Juice", Price = 3.99m, CategoryId = 4, Color = "#60A5FA" },
-                new MenuItem { Id = 11, Name = "Coffee", Price = 2.49m, CategoryId = 4, Color = "#1E40AF" },
-
-                // Salads
-                new MenuItem { Id = 12, Name = "Caesar Salad", Price = 11.99m, CategoryId = 5, Color = "#9CA3AF" },
-                new MenuItem { Id = 13, Name = "Greek Salad", Price = 12.99m, CategoryId = 5, Color = "#6B7280" }
-            );
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.Entity is BaseEntity baseEntity)
+                {
+                    if (entry.State == EntityState.Added)
+                    {
+                        baseEntity.CreatedAt = now;
+                        baseEntity.ModifiedAt = now;
+                    }
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        baseEntity.ModifiedAt = now;
+                        entry.Property(nameof(BaseEntity.CreatedAt)).IsModified = false;
+                    }
+                }
+            }
+            return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }

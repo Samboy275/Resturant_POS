@@ -37,6 +37,25 @@ namespace POS.Controllers
                 .FirstOrDefaultAsync(o => o.Id == id);
         }
 
+        public async Task<Customer> GetCustomerAsync(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
+            {
+                return null;
+            }
+
+            return await _context.Customers.
+                FirstOrDefaultAsync(c => c.Phone == phone);
+
+        }
+
+        public async Task<Customer> CreateCustomerAsync(Customer customer)
+        {
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+            return customer;
+        }
+
         public async Task<List<Order>> GetOrdersByDateAsync(DateTime date)
         {
             var startDate = date.Date;
