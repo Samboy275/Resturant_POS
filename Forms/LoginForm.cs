@@ -9,7 +9,7 @@ namespace POS.Forms
     public partial class LoginForm : Form
     {
         private readonly AuthController _userController; // Inject UserController
-        public User LoggedInUser { get; private set; }
+        public User AuthenticatedUser { get; private set; }
 
         // Inject UserController (which in turn gets POSDbContext)
         public LoginForm(AuthController userController)
@@ -46,7 +46,7 @@ namespace POS.Forms
                 var user = await _userController.LoginAsync(username, password); // Assume this method exists
                 if (user != null)
                 {
-                    LoggedInUser = user;
+                    AuthenticatedUser = user;
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
